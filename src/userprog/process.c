@@ -86,7 +86,7 @@ start_process (void *args_)
   NOT_REACHED ();
 }
 
-int process_wait (tid_t child_thread_id) 
+int process_wait (tid_t child_tid) 
 { 
   int status = -1;
   struct list_elem *e;
@@ -95,7 +95,7 @@ int process_wait (tid_t child_thread_id)
   for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e))
   {
     struct thread *tmp = list_entry (e, struct thread, child_elem);
-    if (tmp->tid == child_thread_id)
+    if (tmp->tid == child_tid)
     {
       child = tmp;
       break;
@@ -199,7 +199,19 @@ struct Elf32_Ehdr
 #define PT_NOTE    4            // Auxiliary info. 
 #define PT_SHLIB   5            // Reserved. 
 #define PT_PHDR    6            // Program header table. 
-#define PT_STACK   0x6474e551   // Stack segment. 
+#define PT_STACK   0x6474e551   // Stack segment.
+
+struct Elf32_Phdr
+  {
+    Elf32_Word p_type;
+    Elf32_Off p_offset;
+    Elf32_Addr p_vaddr;
+    Elf32_Addr p_paddr;
+    Elf32_Word p_filesz;
+    Elf32_Word p_memsz;
+    Elf32_Word p_flags;
+    Elf32_Word p_align;
+  };
 
 #define PF_X 1          // Executable
 #define PF_W 2          // Writable
