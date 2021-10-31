@@ -1,8 +1,7 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
 
-// add
-#include "threads/fixed_point.h"
+
 #include "threads/synch.h"
 
 #include <debug.h>
@@ -99,7 +98,6 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-    // Lily
     int64_t sleep_until;                /* End timestamp of sleep*/
     int original_priority;   
     struct lock *locked_by;
@@ -116,7 +114,6 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
 
-    // Lily -- proj2
     struct thread *parent;              /* Which thread creates this one. */
     
     struct list children;               /* Threads that this one creates. */
@@ -128,7 +125,7 @@ struct thread
     struct file *file;                  /* Executable file of this thread. */
     
     struct semaphore process_wait;      /* Determine whether thread should wait. */
-    // Lily
+
 
 #endif
 
@@ -141,7 +138,6 @@ struct thread
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
 
-// Lily
 bool cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux);
 bool cmp_donate (const struct list_elem *a, const struct list_elem *b, void *aux);
 void check_priority(void);
@@ -158,7 +154,6 @@ tid_t thread_create (const char *name, int priority, thread_func *, void *);
 void thread_block (void);
 void thread_unblock (struct thread *);
 
-// Lily
 void thread_sleep_until (int64_t sleep_until);
 
 struct thread *thread_current (void);
@@ -181,7 +176,6 @@ void thread_set_priority (int);
 // int thread_get_recent_cpu (void);
 // int thread_get_load_avg (void);
 
-// Lily
 void donation_acquire(void);
 void donation_release(void);
 

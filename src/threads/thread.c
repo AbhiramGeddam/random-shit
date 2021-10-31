@@ -13,14 +13,52 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 
-// add
-#include "threads/fixed_point.h"
+
 
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
+#define THREAD_FIXED_POINT_H
 
-// Lily
+/* Definitions of fixed-point. */
+typedef int fixed_point;
+
+/* We use 16 LSB number as the fractional part. */
+#define FP_SHIFT_AMOUNT 16
+
+/* Algorithm for converting a value to a fixed-point value. */
+#define FP_CONVT(A) ((fixed_point)(A << FP_SHIFT_AMOUNT))
+
+/* Algorithm for adding two fixed-point values together. */
+#define FP_ADD(A, B) (A + B)
+
+/* Algorithm for adding a fixed-point value A and an int value B together. */
+#define FP_ADD_MIX(A, B) (A + (B << FP_SHIFT_AMOUNT))
+
+/* Algorithm for substracting a fixed-point value B from a fixed-point value A. */
+#define FP_SUB(A, B) (A - B)
+
+/* Algorithm for substracting an int value B from a fixed-point value A. */
+#define FP_SUB_MIX(A, B) (A - (B << FP_SHIFT_AMOUNT))
+
+/* Algorithm for multiplying two fixed-point value together. */
+#define FP_MULT(A, B) ((fixed_point)(((int64_t)A) * B >> FP_SHIFT_AMOUNT))
+
+/* Algorithm for multiplying a fixed-point value A by an int value B. */
+#define FP_MULT_MIX(A, B) (A * B)
+
+/* Algorithm for dividing a fixed-point value A by a fixed-point value B. */
+#define FP_DIV(A, B) ((fixed_point)((((int64_t)A) << FP_SHIFT_AMOUNT) / B))
+
+/* Algorithm for dividing a fixed-point value A by an int value B. */
+#define FP_DIV_MIX(A, B) (A / B)
+
+/* Algorithm for getting the integer part of a fixed-point value. */
+#define FP_INT_PART(A) (A >> FP_SHIFT_AMOUNT)
+
+/* Algorithm for getting the rounded integer of a fixed-point value. */
+#define FP_ROUND(A) (A >= 0 ? ((A + (1 << (FP_SHIFT_AMOUNT - 1))) >> FP_SHIFT_AMOUNT) : ((A - (1 << (FP_SHIFT_AMOUNT - 1))) >> FP_SHIFT_AMOUNT))
+
 static const int DEPTH = 8;
 
 
@@ -87,7 +125,6 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev); 
 static tid_t allocate_tid (void);
 
-// Lily
 void print_list(const struct list *list) 
 {
   ASSERT(list != NULL);
@@ -98,13 +135,11 @@ void print_list(const struct list *list)
   for (e = list_begin (list); e != list_end (list); e = list_next (e))
   {
     struct thread *t = list_entry (e, struct thread, donate_elem);
-    // printf("%s %d\t", t->name, t->sleep_until);
     printf("%d \n", t->priority);
   }
   printf("\n");
 }
 
-// Lily
 bool 
 cmp_priority (const struct list_elem *a, 
   const struct list_elem *b, 
@@ -115,7 +150,6 @@ cmp_priority (const struct list_elem *a,
   return left->priority > right->priority;
 }
 
-// Lily
 bool 
 cmp_donate (const struct list_elem *a, 
   const struct list_elem *b, 
@@ -126,7 +160,6 @@ cmp_donate (const struct list_elem *a,
   return left->priority > right->priority;
 }
 
-// Lily
 bool 
 cmp_sleep_until (const struct list_elem *a, 
   const struct list_elem *b, 
@@ -137,19 +170,15 @@ cmp_sleep_until (const struct list_elem *a,
   return left->sleep_until < right->sleep_until;
 }
 
-// Lily
 void check_priority(void) {
 
   if (!list_empty(&ready_list)) {
     struct thread * next_thread = 
       list_entry(list_begin(&ready_list), struct thread, elem);
 
-      // printf("check_priority %d\n", next_thread->priority);
-
     if (thread_current()->priority < next_thread->priority) {
       // thread_yield();
       thread_yield__(thread_current());
-      // printf("check_priority %d\n", thread_current()->priority);
     }
       
   }
@@ -177,7 +206,6 @@ void check_priority(void) {
 void
 thread_init (void) 
 {
-  // printf("thread_init begin\n");
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
@@ -191,7 +219,6 @@ thread_init (void)
   // init_thread (initial_thread, "main", PRI_MIN);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-  // printf("thread_init end\n");
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -211,7 +238,6 @@ thread_start (void)
   sema_down (&idle_started);
 }
 
-// Lily
 void check_block_list(int64_t current_ticks) {
   // check block_list and wake up unsleep threads
   struct list_elem *e = list_begin(&block_list);
@@ -224,8 +250,6 @@ void check_block_list(int64_t current_ticks) {
     list_remove(e);
     thread_unblock(t);
     e = list_begin(&block_list);
-    // printf("delete %s status %d from list ", t->name, t->status);
-    // print_list(&block_list);
   }
 }
 
@@ -282,7 +306,6 @@ tid_t
 thread_create (const char *name, int priority,
                thread_func *function, void *aux) 
 {
-  // printf("thread\n");
   struct thread *t;
   struct kernel_thread_frame *kf;
   struct switch_entry_frame *ef;
@@ -292,7 +315,6 @@ thread_create (const char *name, int priority,
 
   ASSERT (function != NULL);
 
-  // printf("create %d\n", priority);
   /* Allocate thread. */
   t = palloc_get_page (PAL_ZERO);
   if (t == NULL)
@@ -324,15 +346,10 @@ thread_create (const char *name, int priority,
 
   intr_set_level (old_level);
 
-  // printf("check\n");
   /* Add to run queue. */
   thread_unblock (t);
-  // Lily
-  // printf("check\n");
 
   t->parent = thread_current();
-    // Lily
-  // printf("%s has child %s \n", thread_current()->name, name);
   list_push_back(&thread_current()->children, &t->child_elem);
   thread_current()->child_load_status = tid;
 
@@ -376,11 +393,8 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
 
-  // printf("unblock %s status %d\n", t->name, t->status);
   ASSERT (t->status == THREAD_BLOCKED);
 
-  //list_push_back (&ready_list, &t->elem);
-  // Lily
   list_insert_ordered(&ready_list, &t->elem, (list_less_func *)cmp_priority, NULL);
 
   t->status = THREAD_READY;
@@ -389,24 +403,18 @@ thread_unblock (struct thread *t)
 }
 
 
-
-// Lily
 void
 thread_sleep_until (int64_t sleep_until) 
 {
-  // printf("[begin]thread_sleep_until\n");
   enum intr_level old_level = intr_disable ();
 
   struct thread *t = thread_current ();
   t->sleep_until = sleep_until;
   list_insert_ordered(&block_list, &t->elem, (list_less_func *)cmp_sleep_until, NULL);
-
-  // print_list(&block_list);
   thread_block();
 
   intr_set_level (old_level);
 
-  // printf("[end]thread_sleep_until\n");
 }
 
 
@@ -477,7 +485,6 @@ thread_yield (void)
   old_level = intr_disable ();
   if (cur != idle_thread) 
     list_insert_ordered(&ready_list, &cur->elem, (list_less_func *)cmp_priority, NULL);
-    // list_push_back (&ready_list, &cur->elem);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -493,7 +500,6 @@ thread_yield__ (struct thread *cur)
   old_level = intr_disable ();
   if (cur != idle_thread) 
     list_insert_ordered(&ready_list, &cur->elem, (list_less_func *)cmp_priority, NULL);
-    // list_push_back (&ready_list, &cur->elem);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -527,7 +533,6 @@ thread_set_priority (int new_priority)
   if (old_priority > new_priority) 
   {
     donation_release();
-    // check_priority();
   }
 }
 
@@ -614,7 +619,6 @@ is_thread (struct thread *t)
 static void
 init_thread (struct thread *t, const char *name, int priority)
 {
-  // printf("init_thread begin\n");
   ASSERT (t != NULL);
   ASSERT (PRI_MIN <= priority && priority <= PRI_MAX);
   ASSERT (name != NULL);
@@ -627,24 +631,12 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 
-  // Lily
-  // Init donation 
-  // t->is_donated = false;
   t->original_priority = priority;
   t->locked_by = NULL;
   list_init(&t->threads_locked);
   list_init(&t->open_fd);
   list_init(&t->children);
   sema_init(&t->process_wait, 0);
-
-  // error ! kenel panic
-  // t->parent = thread_current();
-
-  // Lily rox
-  // struct file *file = filesys_open (name);
-  // file_deny_write(file);
-  // print_list(&t->threads_locked);
-  // printf("init_thread end\n");
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -761,25 +753,17 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-// Lily
+
 void
 donation_acquire(void) 
 {
-  // printf("donation_acquire\n");
   int depth = DEPTH;
   struct thread* cur = thread_current();
-
-  // printf("donation %d\n", thread_current()->name);
-  // if (cur->locked_by == NULL) {
-  //   printf("donation depth %d\n", depth);
-  // }
 
   while (cur->locked_by != NULL && depth > 0) 
   {
     depth -= 1;
     struct thread* pre = cur->locked_by->holder;
-    // printf("donation_acquire : %s %d\n", 
-    //     pre->name, pre->priority);
 
     if (pre != NULL && pre->priority < cur->priority) {
       pre->priority = cur->priority;
@@ -791,18 +775,14 @@ donation_acquire(void)
   }
 }
 
-// Lily
 void 
 donation_release(void)
 { 
-  // printf("release\n");
   struct thread *cur = thread_current();
   cur->priority = cur->original_priority;
 
   if (!list_empty(&cur->threads_locked)) 
   {
-
-    // print_list(&cur->threads_locked);
     struct thread *next = list_entry(list_begin(&cur->threads_locked),
       struct thread, donate_elem);
     // struct thread *next = list_entry(list_begin(&cur->threads_locked),
@@ -814,90 +794,3 @@ donation_release(void)
 
   }
 }
-
-// // add
-// /* Sets the current thread's nice value to NICE. */
-// void
-// thread_set_nice (int nice) 
-// {
-//   thread_current () -> nice = nice;
-//   thread_mlfqs_update_priority (thread_current ());
-//   thread_yield ();
-// }
-
-// /* Returns the current thread's nice value. */
-// int
-// thread_get_nice (void) 
-// {
-//   return thread_current () -> nice;
-// }
-
-// /* Returns 100 times the system load average. */
-// int
-// thread_get_load_avg (void) 
-// {
-//   return FP_ROUND (FP_MULT_MIX (load_avg, 100));
-// }
-
-// /* Returns 100 times the current thread's recent_cpu value. */
-// int
-// thread_get_recent_cpu (void) 
-// {
-//   return FP_ROUND (FP_MULT_MIX (thread_current () -> recent_cpu, 100));
-// }
-
-// // add
-// /* Increase recent_cpu value by 1. */
-// void
-// thread_mlfqs_increase_recent_cpu (void)
-// {
-//   ASSERT (thread_mlfqs);
-//   ASSERT (intr_context ());
-
-//   struct thread *current_thread = thread_current ();
-//   if (current_thread == idle_thread)
-//     return;
-//   current_thread->recent_cpu = FP_ADD_MIX (current_thread->recent_cpu, 1);
-// }
-
-// // add
-// /* Update load_avg and recent_cpu value for all threads. */
-// void
-// thread_mlfqs_update_load_avg_and_recent_cpu (void)
-// {
-//   ASSERT (thread_mlfqs);
-//   ASSERT (intr_context ());
-
-//   size_t ready_threads = list_size (&ready_list);
-//   if (thread_current () != idle_thread)
-//     ready_threads++;
-//   load_avg = FP_ADD (FP_DIV_MIX (FP_MULT_MIX (load_avg, 59), 60), FP_DIV_MIX (FP_CONVT (ready_threads), 60));
-
-//   struct thread *t;
-//   struct list_elem *e = list_begin (&all_list);
-//   for (; e != list_end (&all_list); e = list_next (e))
-//   {
-//     t = list_entry(e, struct thread, allelem);
-//     if (t != idle_thread)
-//     {
-//       t->recent_cpu = FP_ADD_MIX (FP_MULT (FP_DIV (FP_MULT_MIX (load_avg, 2), FP_ADD_MIX (FP_MULT_MIX (load_avg, 2), 1)), t->recent_cpu), t->nice);
-//       thread_mlfqs_update_priority (t);
-//     }
-//   }
-// }
-
-// // add
-// /* Update priority. */
-// void
-// thread_mlfqs_update_priority (struct thread *t)
-// {
-//   if (t == idle_thread)
-//     return;
-
-//   ASSERT (thread_mlfqs);
-//   ASSERT (t != idle_thread);
-
-//   t->priority = FP_INT_PART (FP_SUB_MIX (FP_SUB (FP_CONVT (PRI_MAX), FP_DIV_MIX (t->recent_cpu, 4)), 2 * t->nice));
-//   t->priority = t->priority < PRI_MIN ? PRI_MIN : t->priority;
-//   t->priority = t->priority > PRI_MAX ? PRI_MAX : t->priority;
-// }
