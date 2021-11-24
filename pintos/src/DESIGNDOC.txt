@@ -1,0 +1,208 @@
+			+--------------------+
+			|         OS         |
+			| PROJECT 1: THREADS |
+			|   DESIGN DOCUMENT  |
+			+--------------------+
+
+---- GROUP 24 ----
+
+>> Fill in the names, email addresses and matriculation numbers of your group members.
+
+Abhiram Geddam LastName <gsv.abhiram@iitgn.ac.in> 19110149
+Gautam Vashishtha <gautam.pv@iitgn.ac.in> 19110035
+Reuben Devanesan <reuben.sd@iitgn.ac.in> 19110059
+Shashwat Jain <shashwat.rj@iitgn.ac.in> 19110064
+
+---- PRELIMINARIES ----
+
+>> If you have any preliminary comments on your submission, notes for the
+>> TAs, or extra credit, please give them here.
+
+>> Please cite any offline or online sources you consulted while
+>> preparing your submission, other than the Pintos documentation, course
+>> text, lecture notes, and course staff.
+
+			     ALARM CLOCK
+			     ===========
+
+---- DATA STRUCTURES ----
+
+>> A1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+-- struct list lisleept; This stores the list of the sleeping threads. Used in timer_sleep for adding thread to sleeplist and in timer_interuppt to wake (unblock) the thread.
+
+-- int64_t xticks; For the wake up ticks so that the timer_interrupt unblocks the thread after the specified x timer ticks.
+
+-- struct thread *threadpoint; struct list_elem *elempoint; Pointers to the threads and the list element to loop through the lisleept to unblock the threads whose xticks have passed.
+
+-- bool thread_wp_comparator(const struct list_elem *, const struct list_elem *, void *); Comparator function used by timer_sleep to insert the thread into lisleept on the basis of xticks. Return which thread has more xticks
+
+---- ALGORITHMS ----
+
+>> A2: Briefly describe what happens in a call to timer_sleep(),
+>> including the effects of the timer interrupt handler.
+
+-- In a call to time_sleep(), we first get current thread and checks whether interuppt is off. The current thread's xtick value is updated and it is added to lissleept. Then block the thread.
+
+>> A3: What steps are taken to minimize the amount of time spent in
+>> the timer interrupt handler?
+
+-- We call timer_sleep instead of thread_yield therby saving cpu time. 
+
+---- SYNCHRONIZATION ----
+
+>> A4: How are race conditions avoided when multiple threads call
+>> timer_sleep() simultaneously?
+
+-- As we disabling interrupt only one thread can access at a time
+
+>> A5: How are race conditions avoided when a timer interrupt occurs
+>> during a call to timer_sleep()?
+
+-- Avoided by disabling of the interrupt and putting the current thread to sleeping list and unblocking it. 
+
+---- RATIONALE ----
+
+>> A6: Why did you choose this design?  In what ways is it superior to
+>> another design you considered?
+
+
+
+
+    		     PROD/CONS
+	  		     =========
+
+---- SYNCHRONIZATION ----
+
+>> B1: How does your solution guarantee that consumers will hold until
+>> there is something to consume in the buffer?
+
+-- The variable 'count' ensures that the consumers know to hold until 
+-- there is something to consumer in the buffer. 'count' is initialised 
+-- to 0. Producers increase 'count' by 1 when adding characters to the
+-- buffer while consumers decrease it by 1. The consumers enter a while 
+-- loop if the value of 'count' is 0, and "Buffer is empty" is displayed.
+-- The consumers just go to sleep once the wait is called in the loop.
+
+		while(count == 0) {
+			printf("Buffer is empty");
+			cond_wait(&fill, &mutex);
+		}
+
+>> B2: How does your solution guarantee that producers will hold until
+>> there is some free space in the buffer?
+
+-- The variable 'count' ensures that the producers know to hold until 
+-- there is some free space in the buffer. 'count' is initialised 
+-- to 0. Producers increase 'count' by 1 when adding characters to the
+-- buffer while consumers decrease it by 1. The producers enter a while
+-- loop if the value of 'count' is equal to the maximum buffer length
+-- (in this case, the length of the input word string), and "Buffer is
+-- full" is displayed. The producers go to sleep once the wait is called
+-- in the loop.
+
+		while(count == string_length) {
+			printf("Buffer is full");
+			cond_wait(&empty, &mutex);
+		}
+
+>> B3: How does your solution preserve a FIFO semantics i.e., the first
+>> character produced will be the first to be consumed?
+
+-- Two separate variables have been used, namely 'give' and 'use', which
+-- are both initialised to 0. Both of them are used to tell their 
+-- respective threads what part of the buffer is getting added to or printed
+-- from. 'use' is increased by the consumer threads while printing from the
+-- buffer while 'give' is increased by producers while adding characters to 
+-- the buffer. Since the consumers will hold until the buffer is not empty, 
+-- 'use' only increases after 'give'. Since the increase is by a single digit,
+-- 'use' always follows 'give' in the right order which ensures that the 
+-- first character produced will be the first to be consumed. 
+
+---- RATIONALE ----
+
+>> B4: Give an intuition for why your program preserves safety.
+
+-- The lock 'mutex' is used to lock all actions on the shared buffer which 
+-- ensures that the program preserves safety. The lock is used around all 
+-- the critical sections(shared variables, buffer, etc.) in the program.  
+-- 'lock_acquire' is used to lock the buffer and 'lock_release' will unlock 
+-- the buffer. 
+
+>> B5: Why did you choose this design? Did you consider other design
+>> alternatives? In what ways is it superior to another design you considered?
+
+-- The design was chosen to solve the problem entirely using only locks and
+-- conditional variables, and is inspired heavily from the lecture notes.
+-- Other designs can be consider which use semaphores. The decision was taken 
+-- to stop producers and consumers from adding and removing from the shared 
+-- buffer once "Hello world" has been added, and subsequently printed, once.
+-- The design synchronizes the threads properly using conditional variables
+-- and locks, leaving no scope for any errors. 
+
+
+			     NARROW BRIDGE
+			     =============
+
+---- SYNCHRONIZATION ----
+
+>> C1: How does your solution guarantee that no more that 3 vehicles
+>> are crossing the bridge in the same direction?
+
+We have maintained a constant called 'max_vehicles_allowed' which is preset to 3. Now, whenever vehicles have to be woken up (either normally or by priority) it is only performed less than equal to this value. Similarly, vehicles are allowed to arrive on the bridge only if the number of current vehicles < max_vehicles_allowed alson with checking their direction in the ArriveBridge function. This ensures that no more than 3 vehicles cross the bridge in same direction.
+
+>> C2: What prevents vehicles from opposite directions from crossing the
+>> bridge simultaneously?
+
+In the ArriveBridge function, we are checking a state variable 'curr_dir' that represents the current direction. Any vehicle is allowed to arrive only if either the bridge is empty (curr_vehicles = 0) or number of current vehicles are less than 3 AND they are travelling in the same direction by checking 'curr_dir == direction' where 'direction' is the travelling direction of the incoming car. Priority vehicles are handled using special priority vehicle queues and allowed to use the bridge immediately if the direction matches or elese waits for the current number of vehicles on the bridge to exit.
+
+>> C3: How does your solution grant priority to emergency vehicles over
+>> the queue of vehicles ahead in the same direction?
+
+Emergency vehicles are put in a special priority queue on arrival. Whenever a car exits and priority queue is non-empty, priority_wake() function is called. This will ensure that the next car to use the bridge will be the emergency vehicles irrespective of their direction. Only after the emergency vehicles have passed, will they wake the normal vehicles. In other cases when no emergency cars are present, normal ones will be woken. Thus priority will be given to emergency vehicles over the normal ones.
+
+>> C4: How do you guarantee that despite having priority, emergency vehicles
+>> do not start crossing the bridge while there are still vehicles crossing
+>> it in the oposite direction?
+
+Whenever, a higher priority vehicle arrives, it is put on a priority waitlist. Now, when the priority wakeup calls are made for the emergency vehicles (made when some vehicle exits the bridge after crossing), it first checks whether the current vehicles on the bridge are travelling in the same direction. If yes, it crosses the the bridge behind them else it checks whether no vehicles are present on the bridge. It sets the current direction of movement to its own direction and crosses the bridge. If none of the above conditons are true, it will simply wait for either of them to become true and then cross the bridge. So inspite of having higher priority, it won't start crossing the bridge while there are still opposite direction vehicles crossing it.
+
+>> C5: Explain with examples why your solution does not preserve neither
+>> fairness nor freedom from starvation, other than what has been indicated
+>> for emergency vehicles.
+
+Our solution doesn't guarantee fairness as if even though the normal vehicles came first to cross the bridge, if an emergency vehicle arrives it will be given preference always. So even if the normal vehicles have to go in the same direction, whenever an emergency vehicle arrives, it is allowed first to cross the bridge which can cause delay for other normal cars. As the number of vehicles are predefined and constants, this delay is not infinite. Therefore, there won't be any permanent starvation for normal vehicles and eventually they will be able to cross the bridge (though after very long delays). Also, whenever an emergency vehicle passes it wakes up the remaining normal vehicles to prevent any permanent starvation situatio
+
+---- RATIONALE ----
+
+>> C6: Why did you choose this design? Did you consider other design
+>> alternatives? In what ways is it superior to another design you considered?
+
+-- 
+
+
+			   SURVEY QUESTIONS
+			   ================
+
+Answering these questions is optional, but it will help us improve the
+course in future semesters.  Feel free to tell us anything you
+want--these questions are just to spur your thoughts.  You may also
+choose to respond anonymously in the course evaluations at the end of
+the semester.
+
+>> In your opinion, was this assignment, or any one of the three problems
+>> in it, too easy or too hard?  Did it take too long or too little time?
+
+>> Did you find that working on a particular part of the assignment gave
+>> you greater insight into some aspect of OS design?
+
+>> Is there some particular fact or hint we should give students in
+>> future semesters to help them solve the problems?  Conversely, did you
+>> find any of our guidance to be misleading?
+
+>> Do you have any suggestions for the TAs to more effectively assist
+>> students, either for future semesters or the remaining projects?
+
+>> Any other comments?
